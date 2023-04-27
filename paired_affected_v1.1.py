@@ -96,7 +96,7 @@ if data_file:
     'Per subject per parameter diff', per_subject_diffs
 
     # delta_std = st.slider('Select % of differences between subjects delta and mean group delta', 1.0, 2.0, 1.0, 0.1)
-    stds = list(float(x / 10) for x in range(10, 21))
+    stds = list(float(x / 10) for x in range(0, 21))
     std_df = pd.DataFrame(index=range(1, len(grouped_diffs) + 1))
     show_list = [1.0, 1.5, 2.0]
     affected = {}
