@@ -90,10 +90,30 @@ if data_file:
         control_group = st.selectbox('Select control group', list(group_list.keys()),
                                      help='Control group can be manually changed. The default is the first group in'
                                           ' the data file')
-        st.subheader('2. Select groups to include in analysis')
+        st.subheader('2. Select groups for analysis')
         for group in group_list:
             if group != control_group:
                 group_list[group]['selected'] = st.checkbox(group, group, group + '_key')
+        # 3. define the parameters list
+        st.subheader('3. Select parameters for analysis and set their direction')
+        directions = ['both', 'above control', 'below control']
+        # col1, col2 = st.columns(2)
+
+        for param in param_list:
+            col1, col2 = st.columns(2)
+            # 3. allow manual changes for parameter inclusion
+            param_list[param]['selected'] = col1.checkbox(param, value=param_list[param]['selected'], key=param)
+            # 4. allow manual changes for direction
+            param_list[param]['direction'] = col2.selectbox(param + ' direction', directions,
+                                                              index=directions.index(param_list[param]['direction']))
+
+        # 4. save template to file
+        save_template_file = data_file.name[:-4] + '_direction_preferences.csv'
+        st.download_button('Save directions preferences file for later use?',
+                           data=pd.DataFrame.from_dict(param_list).drop('selected').to_csv(index=False),
+                           file_name=save_template_file,
+                           mime="text/csv",
+                           help='You can use this file when you come back around next time')
 
         # 1. collect group means and sd into dataframes
         group_mean = pd.DataFrame()
@@ -108,9 +128,10 @@ if data_file:
         # 2.1. set the difference between control and other groups mean to be included
         mean_difference = st.slider('Select mean differences between control and experiment groups', 0, 100, 30, 5)
         mean_difference = mean_difference / 100
+
         # 2.2. set the difference between control and other groups deviance to be included
         deviation_difference = \
-            st.slider('Select deviance differences between control and experiment groups', 0, 100, 30, 5)
+            st.slider('Select deviation differences between control and experiment groups', 0, 100, 30, 5)
         deviation_difference = deviation_difference / 100
 
         # 2.3. find parameters that should be included
@@ -127,32 +148,20 @@ if data_file:
 
         # 3. define the parameters list
         st.subheader('3. Select parameters for analysis')
-        directions = ['both', 'above control', 'below control']
-        # col1, col2 = st.columns(2)
 
+        # allow updating the selected parameters
         for param in param_list:
-            col1, col2 = st.columns(2)
             # 3. allow manual changes for parameter inclusion
-            param_list[param]['selected'] = col1.checkbox(param, value=param_list[param]['selected'])
-            # 4. allow manual changes for direction
-            param_list[param]['direction'] = col2.selectbox(param + ' direction', directions,
-                                                            index=directions.index(param_list[param]['direction']))
-        # 4. save template to file
-        save_template_file = data_file.name[:-4] + '_direction_preferences.csv'
-        st.download_button('Save directions preferences file for later use?',
-                           data=pd.DataFrame.from_dict(param_list).drop('selected').to_csv(index=False),
-                           file_name=save_template_file,
-                           mime="text/csv",
-                           help='You can use this file when you come back around next time')
+            param_list[param]['selected'] = st.checkbox(param, value=param_list[param]['selected'])
 
         included_group_list = list(i for i in group_list.keys() if group_list[i]['selected'])
         included_param_list = list(i for i in param_list.keys() if param_list[i]['selected'])
 
-        # group_list_for_dev = {}
-        # for group in included_group_list:
-        #     if group != control_group:
-        #         group_list_for_dev[group] = {}
-        #         group_list_for_dev[group]['selected'] = st.checkbox(group, group)
+        group_list_for_dev = {}
+        for group in included_group_list:
+            if group != control_group:
+                group_list_for_dev[group] = {}
+                group_list_for_dev[group]['selected'] = st.checkbox(group, group)
 
         # group_list_for_dev
         # keep the optimized and weighted maximum difference between control and group
@@ -234,12 +243,14 @@ if data_file:
 
         # 6. show the sd slider with calculated sd value as default. allow selecting 2 limits (high, low)
         st.subheader('4. Select SD range to set limit between affected and unaffected animals')
-        dev_high = st.slider('Select SD range high', 0.5, 2.0, max_of_max['SD'], 0.1, help='If medium level is '
-                     'selected this will set the limit between highly affected and medium affected animal')
+        dev_high = st.slider('Select SD range high',
+                             0.5, 2.0, max_of_max['SD'], 0.1,
+                             help='If medium level is selected this will set the limit between highly affected and '
+                                  'medium affected animal')
         second_level = st.checkbox('Add a medium level?',
-                                   help='The default is to have a affected / not affected animals.'
-                                        ' If a medium level is added, the affected animals will be divided into 2'
-                                        ' levels - highly affected and lowly affected.')
+                                   help='The default is to have affected / not affected animals. '
+                                        'If a medium level is added, the affected animals will be divided into 2 '
+                                        'levels - highly affected and medium affected.')
         final_table[group_col] = data_df[group_col]  # final table
         final_table[subject_col] = data_df[subject_col]  # final table
         true_columns_dict[dev_high]['Number of parameters'] = true_columns_dict[dev_high].index
@@ -323,10 +334,9 @@ if data_file:
             true_false_dict[dev_high]['perc_of_included_med'] = \
                 true_false_dict[dev_high]['sum_med'] / len(included_param_list) * 100
 
-
             # 8. calculate the correct value of affected for each subject
-            true_false_dict[dev_high]['affect_value_corrected'] =\
-                true_false_dict[dev_high]['perc_of_included_high'] +\
+            true_false_dict[dev_high]['affect_value_corrected'] = \
+                true_false_dict[dev_high]['perc_of_included_high'] + \
                 (true_false_dict[dev_high]['perc_of_included_med'] / 2)
             # 9. calculate low-med point by the mean and sd of 'affect_value_corrected' for control group
             control_values = \
@@ -382,7 +392,7 @@ if data_file:
                     true_false_dict[dev_high]['sum'] >= max_of_max['# of params']
                 final_table.loc[true_false_dict[dev_high]['sum_med'].index, 'Affected_med'] = \
                     (max_of_max['# of params'] >= true_false_dict[dev_high]['sum_med']) & \
-                    (true_false_dict[dev_high]['sum_med'] >= max_of_max['# of params'])
+                    (true_false_dict[dev_high]['sum_med'] >= int(max_of_max['# of params'] * (dev_low / dev_high)))
 
                 high_columns = included_param_list
                 med_columns = \
