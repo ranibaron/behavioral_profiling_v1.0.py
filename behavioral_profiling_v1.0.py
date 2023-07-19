@@ -83,9 +83,10 @@ if data_file:
     else:
         if use_template_file == 'Yes':
             param_list = {i: {'selected': False, 'direction': template_df.loc[0, i]} for i in template_df.columns}
-        else:
-            param_list = {i: {'selected': False, 'direction': 'both'} for i in data_df.columns[2:]}
 
+        else:
+            param_list = {i: {'selected': False, 'direction': 'both', 'dir_icon': ':arrow_up_down:'} for i in
+                          data_df.columns[2:]}
         # control group selection. defaults to first group in data file
         control_group = st.selectbox('Select control group', list(group_list.keys()),
                                      help='Control group can be manually changed. The default is the first group in'
@@ -105,7 +106,15 @@ if data_file:
             param_list[param]['selected'] = col1.checkbox(param, value=param_list[param]['selected'], key=param)
             # 4. allow manual changes for direction
             param_list[param]['direction'] = col2.selectbox(param + ' direction', directions,
-                                                              index=directions.index(param_list[param]['direction']))
+                                                            index=directions.index(param_list[param]['direction']))
+
+            # update the arrow icons directions
+            if param_list[param]['direction'] == 'both':
+                param_list[param]['dir_icon'] = ':arrow_up_down:'
+            elif param_list[param]['direction'] == 'above control':
+                param_list[param]['dir_icon'] = ':arrow_up_small:'
+            else:
+                param_list[param]['dir_icon'] = ':arrow_down_small:'
 
         # 4. save template to file
         save_template_file = data_file.name[:-4] + '_direction_preferences.csv'
@@ -151,19 +160,22 @@ if data_file:
 
         # allow updating the selected parameters
         for param in param_list:
+            col1, col2 = st.columns(2)
             # 3. allow manual changes for parameter inclusion
-            param_list[param]['selected'] = st.checkbox(param, value=param_list[param]['selected'])
+            param_list[param]['selected'] = col1.checkbox(param, value=param_list[param]['selected'])
+
+            # show direction arrows
+            col2.markdown(param_list[param]['dir_icon'])
 
         included_group_list = list(i for i in group_list.keys() if group_list[i]['selected'])
         included_param_list = list(i for i in param_list.keys() if param_list[i]['selected'])
 
-        group_list_for_dev = {}
-        for group in included_group_list:
-            if group != control_group:
-                group_list_for_dev[group] = {}
-                group_list_for_dev[group]['selected'] = st.checkbox(group, group)
+        # group_list_for_dev = {}
+        # for group in included_group_list:
+        #     if group != control_group:
+        #         group_list_for_dev[group] = {}
+        #         group_list_for_dev[group]['selected'] = st.checkbox(group, group)
 
-        # group_list_for_dev
         # keep the optimized and weighted maximum difference between control and group
         max_of_max = {'SD': 0.5, '# of params': 0, 'max diff': 0,
                       'weighted': 0}
@@ -212,12 +224,12 @@ if data_file:
             true_sums_counts_cut = true_columns_dict[sd][true_columns_dict[sd][control_group] <= 20]
 
             # calculate the maximum difference between any of the groups and the control group
-            true_sums_counts_cut['max_diff'] = \
+            true_sums_counts_cut.loc[:, 'max_diff'] = \
                 true_sums_counts_cut.loc[:, included_group_list].max(1) - true_sums_counts_cut[control_group]
 
             # calculate the weighted index as max_diff divided by the number of parameters
 
-            true_sums_counts_cut['weighted'] = true_sums_counts_cut['max_diff'] * true_sums_counts_cut.index
+            true_sums_counts_cut.loc[:, 'weighted'] = true_sums_counts_cut['max_diff'] * true_sums_counts_cut.index
 
             # replace value if weighted is grater than the value collected until now
             if true_sums_counts_cut['weighted'].max() > max_of_max['weighted']:
@@ -302,8 +314,9 @@ if data_file:
                 st.pyplot(fig1)
 
                 # 13. create the final table of subjects and their respective list of affected parameters
-                final_table.loc[true_false_dict[dev_high]['sum'].index, 'Affected'] = \
-                    true_false_dict[dev_high]['sum'] >= max_of_max['# of params']
+                # final_table.loc[true_false_dict[dev_high]['sum'].index, 'Affected'] = \
+                #     true_false_dict[dev_high]['sum'] >= max_of_max['# of params']
+                final_table['Affected'] = true_false_dict[dev_high]['sum'] >= max_of_max['# of params']
                 only_true_false_df = true_false_dict[dev_high].drop([group_col, subject_col, 'sum'], axis=1)
                 attended_params = only_true_false_df.apply(lambda row: row.index[row.astype(bool)].tolist(), 1)  #
                 final_table.loc[true_false_dict[dev_high]['sum'].index, 'Params'] = attended_params
