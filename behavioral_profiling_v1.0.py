@@ -129,10 +129,10 @@ if data_file:
         group_std = pd.DataFrame()
         # loop groups and calculate mean and sd + remove unwanted columns
         for group in list(i for i in group_list.keys() if group_list[i]['selected']):
-            group_mean[group] = data_df[data_df[group_col] == int(group[-1])][
-                param_list].mean()  # collect all the groups means
-            group_std[group] = data_df[data_df[group_col] == int(group[-1])][
-                param_list].std()  # collect all the groups SDs
+            # collect all the groups means
+            group_mean[group] = data_df[data_df[group_col] == int(group[-1])][param_list.keys()].mean()
+            # collect all the groups SDs
+            group_std[group] = data_df[data_df[group_col] == int(group[-1])][param_list.keys()].std()
 
         # 2.1. set the difference between control and other groups mean to be included
         mean_difference = st.slider('Select mean differences between control and experiment groups', 0, 100, 30, 5)
@@ -199,7 +199,8 @@ if data_file:
             # check the inclusion or exclusion for each animal in each parameter against the control group mean and SD
             for group in included_group_list:  # loop thorough the included groups
                 for param in included_param_list:  # calculate for each of the parameters
-                    standard_param_col = (data_df[param] - group_mean[control_group][param]) / group_std[control_group][param]
+                    standard_param_col = (data_df[param] - group_mean[control_group][param]) /\
+                                         group_std[control_group][param]
                     if param_list[param]['direction'] == 'both':
                         true_false_dict[sd][param] = abs(standard_param_col) >= sd
                     elif param_list[param]['direction'] == 'above control':
@@ -300,7 +301,8 @@ if data_file:
                 # 'Sizes =', sizes
                 pie_df = pd.DataFrame(sizes)
 
-                ax1.set_title('Group ' + group[-1] + ' / ' + 'SD: ' + str(dev_high) + ' / Params: ' + str(num_of_params),
+                ax1.set_title('Group ' + group[-1] + ' / ' + 'SD: ' + str(dev_high) + ' / Params: ' +
+                              str(num_of_params),
                               fontsize=18)
                 ax1.pie(sizes,
                         explode=explode,
